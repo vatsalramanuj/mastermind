@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Mastermind</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Mastermind</h1>
+        <div id="header-buttons">
+            <button id="instructions-btn">
+                Instructions
+            </button>
+            <button id="mode-toggle">
+                Light Mode
+            </button>
+        </div>
+
+
+        
+        <div id="game-board">
+        </div>
+
+        <div id="input-area">
+            
+            <div id="current-guess" class="guess-row">
+                <div class="guess-container"> 
+                    <span class="guess-slot empty"></span>
+                    <span class="guess-slot empty"></span>
+                    <span class="guess-slot empty"></span>
+                    <span class="guess-slot empty"></span>
+                </div>
+                <div class="feedback-container empty-feedback">
+                </div>
+            </div>
+
+            <div id="controls">
+                <div id="color-buttons">
+                </div>
+                <button id="submit-guess" disabled>Guess</button>
+            </div>
+        </div>
+
+        <div id="message-area"></div>
+        </div>
+    <div id="instructions-modal" class="modal-overlay">
+        <div class="modal-content instructions-content">
+            <h2 id="instructions-modal-title">How to Play Mastermind</h2>
+            
+            <p>Your goal is to crack the secret 4-color code in 12 attempts or fewer. Note that there could be repeated colors in the secret pattern.</p>
+            
+            <hr>
+            
+            <h3>1. Making a Guess</h3>
+            <ul>
+                <li>Select 4 colors using the color buttons below the board.</li>
+                <li>Click the Guess button to submit your combination.</li>
+            </ul>
+            
+            <h3>2. Feedback System</h3>
+            <p>After each guess, you receive feedback (the small pins on the right):</p>
+            
+            <!-- <div style="display: flex; gap: 20px; align-items: center; margin: 10px 0;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <span class="feedback-peg" style="background-color: black; border-color: black;"></span>
+                    <span class="feedback-peg" style="background-color: white; border-color: black;"></span>
+                </div>
+                <p style="margin: 0;">Example Feedback Pins</p>
+            </div>
+             -->
+            <p>The feedback tells you:</p>
+            <ul>
+                <li><span class="feedback-peg" style="background-color: #FF0000; border-color: black;"></span> Red Peg: One color is correct and in the correct position.</li>
+                <li><span class="feedback-peg" style="background-color:  #FFFFFF; border-color: black;"></span> White Peg: One color is correct but in the wrong position.</li>
+                <li><span class="feedback-peg" style="background-color: black; border-color: black;"></span> Black Peg: One color is incorrect (not part of the secret code).</li>
+            </ul>
+            
+            <hr>
+
+            <p>The order of the feedback pins does not correspond to the order of the guess pins.</p>
+
+            <div class="modal-buttons">
+                <button id="instructions-modal-close" class="btn-info">Got It!</button>
+            </div>
+        </div>
+    </div>
+    <div id="game-over-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="modal-title"></h2>
+            
+            <p>The Secret Pattern Was:</p>
+            <div id="final-pattern-display" class="guess-container">
+            </div>
+            <p id="modal-share-message" style="font-weight: bold; color: green; margin-top: 15px;"></p>
+
+            <div class="modal-buttons">
+                <button id="modal-share" class="btn-info">Share Results</button>
+                </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration from Python backend
+        const COLORS = {{ COLORS | tojson }}; 
+        const CORRECT_COLORS = {{ CORRECT_COLORS | tojson }}; 
+        const MAX_SLOTS = {{ MAX_SLOTS | tojson }};
+        const MAX_GUESSES = {{ MAX_GUESSES | tojson }}; 
+        const initialHistory = {{ initial_history | tojson }};
+        const initialNumGuesses = {{ initial_num_guesses | tojson }};
+
+        const EMOJI_MAP = {
+            [CORRECT_COLORS[0]]: '⚫', // Unused (Black Square)
+            [CORRECT_COLORS[1]]: '⚪', // Whites (White Circle)
+            [CORRECT_COLORS[2]]: '🔴'  // Reds (Red Circle)
+        };
+        
+        // --- State Variables ---
+        let currentGuess = [];
+        let guessCount = initialNumGuesses;
+        let colorMap = {}; 
+        let currentPattern = [];
+        let feedbackHistory = initialHistory;
+        
+        // --- DOM Elements ---
+        const modeToggleButton = document.getElementById('mode-toggle');
+        const gameBoard = document.getElementById('game-board');
+        const colorButtonsDiv = document.getElementById('color-buttons');
+        const currentGuessDiv = document.getElementById('current-guess');
+        const submitButton = document.getElementById('submit-guess');
+        const messageArea = document.getElementById('message-area');
+
+        // Modal Elements
+        const gameOverModal = document.getElementById('game-over-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const finalPatternDisplay = document.getElementById('final-pattern-display');
+        const modalShareButton = document.getElementById('modal-share');
+        const modalShareMessage = document.getElementById('modal-share-message');
+
+        const instructionsButton = document.getElementById('instructions-btn');
+        const instructionsModal = document.getElementById('instructions-modal');
+        const instructionsCloseButton = document.getElementById('instructions-modal-close');
+
+        COLORS.forEach((color, index) => {
+            colorMap[color] = index;
+        });
+
+        // --- Modal Control Functions ---
+
+        function showGameOverModal(pattern, win) {
+            // FIX: Using innerHTML and <br> for newline
+            modalTitle.innerHTML = win ? 
+                "CONGRATULATIONS!<br>YOU CRACKED THE CODE!" : 
+                "GAME OVER!<br>YOU LOST.";
+            
+            finalPatternDisplay.innerHTML = ''; 
+            modalShareMessage.textContent = '';
+    
+            if (Array.isArray(pattern) && pattern.length === MAX_SLOTS) {
+                // Render the secret pattern pegs
+                pattern.forEach(colorIndex => {
+                    const peg = document.createElement('span');
+                    peg.className = 'guess-slot submitted-peg';
+                    peg.style.backgroundColor = COLORS[colorIndex];
+                    finalPatternDisplay.appendChild(peg);
+                });
+            } else {
+                const errorMsg = document.createElement('p');
+                errorMsg.textContent = "Error: Secret pattern could not be loaded.";
+                errorMsg.style.color = 'red';
+                finalPatternDisplay.appendChild(errorMsg);
+            }
+
+            gameOverModal.style.display = 'flex'; // Show the modal
+        }
+        
+        function hideGameOverModal() {
+            gameOverModal.style.display = 'none';
+        }
+        function showInstructionsModal() {
+            instructionsModal.style.display = 'flex';
+        }
+
+        function hideInstructionsModal() {
+            instructionsModal.style.display = 'none';
+        }
+        // --- Core Logic for Sharing Image ---
+        function handleShareResult(event) {
+            if (event) {
+                event.preventDefault(); 
+            }
+            
+            modalShareMessage.textContent = '';
+            
+            // 1. Construct the Emoji Grid and Timestamp
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const timestamp = `${day}/${month}/${year}`;
+
+            let emojiMessage = `🧠 Mastermind Result ${timestamp}\n\n`;
+
+            if (!Array.isArray(feedbackHistory)) {
+                console.error("Feedback history is invalid. Cannot copy results.");
+                modalShareMessage.textContent = 'Error: Game history missing.';
+                modalShareMessage.style.color = 'red';
+                return; 
+            }
+
+            feedbackHistory.forEach((feedback) => {
+                let rowEmojis = '';
+                
+                // a. Reds (Correct Color/Position)
+                for (let i = 0; i < feedback.reds; i++) {
+                    rowEmojis += EMOJI_MAP[CORRECT_COLORS[2]];
+                }
+                // b. Whites (Correct Color, Wrong Position)
+                for (let i = 0; i < feedback.whites; i++) {
+                    rowEmojis += EMOJI_MAP[CORRECT_COLORS[1]];
+                }
+                // c. Unused/Gray (No Match)
+                const unused = MAX_SLOTS - (feedback.reds + feedback.whites);
+                for (let i = 0; i < unused; i++) {
+                    rowEmojis += EMOJI_MAP[CORRECT_COLORS[0]];
+                }
+                
+                emojiMessage += rowEmojis + '\n';
+            });
+
+            emojiMessage += '\n' + 'To play yourselves, visit mastermind.pythonanywhere.com' + '\n'
+            
+            // --- 2. Copy to Clipboard ---
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(emojiMessage)
+                    .then(() => {
+                        modalShareMessage.textContent = 'Result copied to clipboard!';
+                        modalShareMessage.style.color = 'green';
+                        console.log("Copied:", emojiMessage);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy text (Permission denied?): ', err);
+                        modalShareMessage.textContent = 'Failed to copy (Permission error).';
+                        modalShareMessage.style.color = 'red';
+                    });
+            } else {
+                modalShareMessage.textContent = 'Clipboard API not supported. Copy manually.';
+                modalShareMessage.style.color = 'orange';
+                console.log("Manual Copy Needed:", emojiMessage);
+            }
+        }
+
+        // --- Dark Mode Logic ---
+        function toggleDarkMode() {
+            const isDarkMode = document.body.classList.toggle('dark-mode');
+            modeToggleButton.textContent = isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode';
+            localStorage.setItem('mastermind-theme', isDarkMode ? 'dark' : 'light');
+        }
+
+        function loadUserTheme() {
+            const savedTheme = localStorage.getItem('mastermind-theme');
+            
+            if (savedTheme === 'dark' || 
+                (savedTheme === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                
+                document.body.classList.add('dark-mode');
+                modeToggleButton.textContent = '🌙 Dark Mode';
+            } else {
+                modeToggleButton.textContent = '☀️ Light Mode';
+            }
+        }
+
+        // --- Event Handlers and Rendering ---
+
+        function handleColorClick(colorIndex) {
+            if (currentGuess.length < MAX_SLOTS) {
+                currentGuess.push(colorIndex);
+                updateCurrentGuessDisplay();
+            }
+        }
+
+        function updateCurrentGuessDisplay() {
+            const slots = currentGuessDiv.querySelector('.guess-container').querySelectorAll('.guess-slot');
+            
+            slots.forEach((slot, index) => {
+                if (index < currentGuess.length) {
+                    const colorName = COLORS[currentGuess[index]];
+                    slot.style.backgroundColor = colorName;
+                    slot.classList.remove('empty');
+                } else {
+                    slot.style.backgroundColor = '';
+                    slot.classList.add('empty');
+                }
+            });
+
+            submitButton.disabled = currentGuess.length !== MAX_SLOTS;
+        }
+
+        async function handleSubmitGuess() {
+            if (currentGuess.length !== MAX_SLOTS) return;
+
+            submitButton.disabled = true; 
+            messageArea.textContent = 'Checking guess...';
+
+            // Store current guess locally for re-enabling button in case of failure
+            const guessToSend = currentGuess; 
+
+            try {
+                const response = await fetch('/make_guess', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guess: guessToSend })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const currentFeedback = { guess: guessToSend, reds: data.reds, whites: data.whites };
+                    feedbackHistory.push(currentFeedback);
+                    renderGuessRow(guessToSend, data.reds, data.whites);
+                    
+                    currentGuess = []; 
+                    updateCurrentGuessDisplay();
+                    guessCount++;
+
+                    // CHECK FOR GAME END CONDITION (WIN OR LOSS)
+                    if (data.game_over) {
+                        disableGame();
+                        let win = data.win; 
+                        currentPattern = data.pattern;
+                        
+                        showGameOverModal(data.pattern, win);
+                        messageArea.textContent = 'Game over! Come back tomorrow to play again.';
+                        
+                    } else {
+                        const remaining = MAX_GUESSES - guessCount;
+                        const plural = remaining === 1 ? 'guess' : 'guesses';
+                        messageArea.textContent = `${remaining} ${plural} remaining.`;
+                    }
+
+                } else {
+                    messageArea.textContent = `Error: ${data.error}`;
+                }
+
+            } catch (error) {
+                messageArea.textContent = 'An error occurred. Check server.';
+                console.error('Fetch error:', error);
+            } finally {
+                // Re-enable if the game isn't over or if there was a fetch error
+                if (!feedbackHistory[feedbackHistory.length - 1]?.reds === MAX_SLOTS && guessCount < MAX_GUESSES) {
+                    submitButton.disabled = currentGuess.length !== MAX_SLOTS;
+                }
+            }
+        }
+
+        function renderColorButtons() {
+            colorButtonsDiv.innerHTML = '';
+            COLORS.forEach((color, index) => {
+                const button = document.createElement('button');
+                button.className = 'color-button';
+                button.style.backgroundColor = color;
+                button.onclick = () => handleColorClick(index);
+                colorButtonsDiv.appendChild(button);
+            });
+        }
+
+        function renderGuessRow(guess, reds, whites) {
+            const row = document.createElement('div');
+            row.className = 'history-row';
+
+            // 1. Guess Pegs
+            const guessContainer = document.createElement('div');
+            guessContainer.className = 'guess-container';
+            guess.forEach(colorIndex => {
+                const peg = document.createElement('span');
+                peg.className = 'guess-slot submitted-peg';
+                peg.style.backgroundColor = COLORS[colorIndex];
+                guessContainer.appendChild(peg);
+            });
+            row.appendChild(guessContainer);
+
+            // 2. Feedback Pegs
+            const feedbackContainer = document.createElement('div');
+            feedbackContainer.className = 'feedback-container';
+
+            // Reds first (Black peg: CORRECT_COLORS[2])
+            for (let i = 0; i < reds; i++) {
+                const peg = document.createElement('span');
+                peg.className = 'feedback-peg';
+                peg.style.backgroundColor = CORRECT_COLORS[2]; 
+                feedbackContainer.appendChild(peg);
+            }
+
+            // Whites next (White peg: CORRECT_COLORS[1])
+            for (let i = 0; i < whites; i++) {
+                const peg = document.createElement('span');
+                peg.className = 'feedback-peg';
+                peg.style.backgroundColor = CORRECT_COLORS[1]; 
+                feedbackContainer.appendChild(peg);
+            }
+            
+            // Unused slots (Gray peg: CORRECT_COLORS[0])
+            for (let i = reds + whites; i < MAX_SLOTS; i++) {
+                const peg = document.createElement('span');
+                peg.className = 'feedback-peg';
+                peg.style.backgroundColor = CORRECT_COLORS[0]; 
+                feedbackContainer.appendChild(peg);
+            }
+
+            row.appendChild(feedbackContainer);
+            gameBoard.appendChild(row); 
+        }
+
+        function disableGame() {
+            submitButton.disabled = true;
+            colorButtonsDiv.style.pointerEvents = 'none'; 
+        }
+
+        function enableGame() {
+            submitButton.disabled = false;
+            colorButtonsDiv.style.pointerEvents = 'auto';
+        }
+
+        // --- Game Flow Control ---
+        async function loadDailyChallenge() {
+            gameBoard.innerHTML = '';
+            currentGuess = [];
+            updateCurrentGuessDisplay();
+            
+            messageArea.textContent = 'Loading today\'s challenge...';
+
+            try {
+                const response = await fetch('/start_game', { method: 'POST' });
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    messageArea.textContent = `Error starting game: ${data.error}`;
+                    disableGame();
+                    return;
+                }
+
+                // Update client-side history from the synchronized backend state
+                feedbackHistory = data.history || []; 
+                guessCount = data.num_guesses || 0;
+
+                if (feedbackHistory.length > 0) {
+                    feedbackHistory.forEach((entry) => {
+                        renderGuessRow(entry.guess, entry.reds, entry.whites);
+                    });
+                    
+                    const lastGuess = feedbackHistory[feedbackHistory.length - 1];
+                    const wasFinished = (lastGuess.reds === MAX_SLOTS) || (guessCount >= MAX_GUESSES);
+
+                    if (wasFinished) {
+                        disableGame();
+                        messageArea.textContent = 'Game over! Come back tomorrow to play again.';
+                        
+                        if (data.pattern) {
+                            const winStatus = (lastGuess && lastGuess.reds === MAX_SLOTS);
+                            showGameOverModal(data.pattern, winStatus);
+                        }
+                    } else {
+                        const remaining = MAX_GUESSES - guessCount;
+                        const plural = remaining === 1 ? 'guess' : 'guesses';
+                        messageArea.textContent = `${remaining} ${plural} remaining.`;
+                        enableGame();
+                    }
+                } else {
+                    const remaining = MAX_GUESSES - guessCount;
+                    const plural = remaining === 1 ? 'guess' : 'guesses';
+                    messageArea.textContent = `Welcome Mastermind! ${remaining} ${plural} remaining.`;
+                    enableGame();
+                }
+
+            } catch (error) {
+                messageArea.textContent = 'Could not connect to the Python backend.';
+                console.error('Load game error:', error);
+                disableGame();
+            }
+        }
+        
+        // Initial setup and event listeners
+        modeToggleButton.addEventListener('click', toggleDarkMode);
+        renderColorButtons();
+        submitButton.addEventListener('click', handleSubmitGuess);
+        modalShareButton.addEventListener('click', handleShareResult);
+        instructionsButton.addEventListener('click', showInstructionsModal);
+        instructionsCloseButton.addEventListener('click', hideInstructionsModal);
+        instructionsModal.addEventListener('click', (event) => {
+            if (event.target === instructionsModal) {
+                hideInstructionsModal();
+            }
+        });
+        
+        loadUserTheme();
+        loadDailyChallenge();
+    </script>
+</body>
+</html>

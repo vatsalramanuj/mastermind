@@ -1,0 +1,432 @@
+/* --- Root Variables for Theming --- */
+:root {
+    /* Light Mode Defaults */
+    --bg-color: #f4f7f6;       /* Main body background (Light Gray) */
+    --content-bg: #ffffff;     /* Content/Card background (White) */
+    --text-color: #333333;     /* Dark text */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --border-color: #cccccc;
+    --peg-border: #333;        /* Peg outline */
+    --empty-peg: #e0e0e0;      /* Empty slot color */
+}
+
+/* --- Dark Mode Overrides --- */
+body.dark-mode {
+    --bg-color: #1a1a1a;       /* Dark background */
+    --content-bg: #2d2d2d;     /* Slightly lighter dark card background */
+    --text-color: #e0e0e0;     /* Light text */
+    --shadow-color: rgba(0, 0, 0, 0.5);
+    --border-color: #555555;
+    --peg-border: #999;
+    --empty-peg: #3e3e3e;
+}
+
+/* ------------------------------------------------------------------- */
+/* --- GLOBAL STYLES --- */
+/* ------------------------------------------------------------------- */
+
+body {
+    font-family: Arial, sans-serif;
+    /* Use variables for dynamic theming */
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s; 
+    
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+
+.container {
+    background-color: var(--content-bg); /* Use variable */
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px var(--shadow-color); /* Use variable */
+    width: 90%;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+h1 {
+    color: var(--text-color); /* Use variable for text color */
+    margin-bottom: 20px;
+}
+
+/* ------------------------------------------------------------------- */
+/* --- GAME BOARD AND GUESS PEGS --- */
+/* ------------------------------------------------------------------- */
+
+#game-board {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color); /* Use variable */
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column; 
+}
+
+.history-row, #current-guess {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color); /* Use variable */
+}
+
+#current-guess {
+    justify-content: space-between;
+    border: 2px dashed var(--border-color); /* Use variable */
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.guess-container {
+    display: flex;
+    gap: 10px;
+}
+
+.guess-slot, .submitted-peg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--peg-border); /* Use variable */
+}
+
+.guess-slot.empty {
+    background-color: var(--empty-peg); /* Use variable */
+}
+
+/* ------------------------------------------------------------------- */
+/* --- FEEDBACK PEGS (Mastermind Feedback) --- */
+/* ------------------------------------------------------------------- */
+
+.feedback-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 5px;
+    width: 50px; 
+}
+
+.feedback-peg {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid var(--peg-border); /* Use variable */
+}
+
+.empty-feedback {
+    visibility: hidden;
+}
+
+/* ------------------------------------------------------------------- */
+/* --- INPUTS AND CONTROLS --- */
+/* ------------------------------------------------------------------- */
+
+#input-area {
+    display: flex;
+    flex-direction: column; 
+    gap: 15px;
+    padding: 10px 0;
+    border-top: 2px solid var(--border-color); /* Use variable */
+}
+
+#controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#color-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px; 
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px 0;
+}
+
+.color-button {
+    width: 50px;
+    height: 50px;
+    min-width: 40px;
+    border-radius: 50%;
+    border: 3px solid var(--peg-border); /* Use variable */
+    cursor: pointer;
+    transition: transform 0.1s;
+    box-shadow: 0 2px 4px var(--shadow-color); /* Use variable */
+}
+
+.color-button:hover {
+    transform: scale(1.05);
+}
+
+.color-button:active {
+    transform: scale(0.95);
+}
+
+/* --- Submit Button and Message --- */
+#submit-guess, #new-game-btn, .btn-info {
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: 20px;
+    font-weight: bold;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-info {
+    background-color: hsl(199, 98%, 48%); /* Blue color */
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-info:hover {
+    background-color: hsl(199, 98%, 48%);
+}
+
+#submit-guess {
+    background-color: #4CAF50; /* Fixed success color */
+    color: white;
+}
+
+#submit-guess:disabled {
+    background-color: #a5d6a7;
+    cursor: not-allowed;
+}
+
+#new-game-btn, .btn-info, .btn-success {
+    background-color: hsl(199, 98%, 48%); /* Fixed Info/Primary color */
+    color: white;
+}
+.btn-success:hover, #new-game-btn:hover, .btn-info:hover {
+    background-color: hsl(199, 98%, 48%);
+}
+
+#message-area {
+    margin-top: 15px;
+    min-height: 20px;
+    font-weight: bold;
+    color: var(--text-color); /* Ensure message area text adapts */
+}
+
+/* Win/Loss colors remain fixed for visibility */
+.win-msg {
+    color: #4CAF50;
+    font-size: 1.1em;
+}
+
+.loss-msg {
+    color: #F44336;
+    font-size: 1.1em;
+}
+
+/* ------------------------------------------------------------------- */
+/* --- MODAL (Game Over) --- */
+/* ------------------------------------------------------------------- */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--content-bg); /* Use variable */
+    color: var(--text-color); /* Use variable */
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 5px 15px var(--shadow-color); /* Use variable */
+    width: 90%;
+    max-width: 400px;
+}
+
+#final-pattern-display {
+    justify-content: center;
+    margin: 20px auto;
+    border: 2px solid var(--peg-border); /* Use variable */
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.modal-buttons {
+    margin-top: 25px;
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* .btn-success, .btn-danger styles are defined above/below for consistency */
+
+.btn-danger {
+    background-color: #F44336; /* Fixed danger color */
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.btn-danger:hover {
+    background-color: #d32f2f;
+}
+
+/* Base styling for the toggle button */
+#mode-toggle {
+    /* General Button styles */
+    padding: 10px 15px; 
+    border-radius: 5px; 
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border 0.2s; 
+
+    /* Light Mode appearance */
+    background-color: var(--content-bg); /* White background */
+    color: var(--text-color);           /* Dark text */
+    border: 1px solid var(--border-color); /* Visible border */
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+/* Override for Dark Mode */
+body.dark-mode #mode-toggle {
+    background-color: #3e3e3e; 
+    color: var(--text-color);   
+    border: 1px solid #777;
+}
+
+/* ------------------------------------------------------------------- */
+/* --- MEDIA QUERIES (Responsiveness) --- */
+/* ------------------------------------------------------------------- */
+
+@media (max-width: 600px) {
+    /* Increase the size of the main feedback pins */
+    .feedback-peg {
+        width: 25px; /* Larger size for better visibility */
+        height: 25px; 
+    }
+
+    /* If you have a 'flat' or smaller version of the pin, increase that too */
+    .feedback-flat .feedback-peg {
+        width: 15px; /* Increase the smaller pin size */
+        height: 15px;
+    }
+    
+    /* Optional: You may also want to increase the size of the Guess Pins
+       to make them easier to tap on a phone */
+    .guess-pin {
+        width: 40px; 
+        height: 40px; 
+        margin: 5px;
+    }
+
+    /* Optional: Reduce the overall size of the board container 
+       to ensure everything fits on a small screen */
+    .container {
+        padding: 10px;
+    }
+
+    .history-row, #current-guess {
+        /* Align pins to the left side */
+        justify-content: flex-start; 
+        
+        /* Set a small, fixed gap between the guess-container and the feedback-container */
+        gap: 15px; /* You can adjust this value (e.g., 10px, 20px) */
+    }
+}
+
+/* ------------------------------------------------------------------- */
+/* --- SHARING / TEMPORARY STYLES (Emoji Copy - Cleanup Recommended) --- */
+/* ------------------------------------------------------------------- */
+
+/* These are mostly leftovers from image capture, but kept for compatibility */
+
+.history-row.capture-feedback-only .guess-container {
+    display: none !important; 
+}
+
+.history-row.capture-feedback-only {
+    justify-content: center; 
+}
+
+.feedback-flat .feedback-container {
+    display: flex !important; 
+    flex-wrap: nowrap !important; 
+    justify-content: flex-start !important; 
+    align-items: center !important;
+    gap: 4px; 
+    height: auto !important;
+}
+
+.feedback-flat .feedback-peg {
+    width: 10px; 
+    height: 10px;
+    margin: 0;
+}
+
+/* Center the button group below the main heading */
+#header-buttons {
+    display: flex; /* Makes the buttons side-by-side */
+    justify-content: center; /* Centers the group horizontally */
+    gap: 15px; /* Adds space between the two buttons */
+    margin-bottom: 20px; /* Adds space between buttons and the game board */
+}
+
+/* Optional: Improve the look of the buttons */
+#header-buttons button {
+    /* Ensures they look consistent, you might already have button styles */
+    padding: 8px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+/* If using dark mode, ensure buttons look good */
+.dark-mode #header-buttons button {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+}
+
+.instructions-content {
+    text-align: left; 
+}
+
+/* 2. Ensure the list items and headings are aligned left (usually redundant 
+      with text-align: left, but good practice) */
+.instructions-content h2,
+.instructions-content h3,
+.instructions-content p,
+.instructions-content ul {
+    text-align: left;
+}
+
+/* 3. Handle the modal buttons to align left */
+.instructions-content .modal-buttons {
+    display: flex;
+    justify-content: flex-start; /* Aligns content to the start (left) */
+    padding-top: 15px; 
+}
